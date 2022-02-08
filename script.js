@@ -6,6 +6,8 @@
 class Workout {
     date = new Date();
     id = (Date.now() + '').slice(-10);
+    clicks = 0;
+
     constructor(coords, distance, duration) {
         this.coords = coords;
         this.distance = distance;
@@ -25,7 +27,8 @@ class Workout {
 }
 
 class Running extends Workout {
-    type = 'running'
+    type = 'running';
+
     constructor(coords, distance, duration, cadence) {
     super(coords, distance, duration);
         this.cadence = cadence;
@@ -53,10 +56,10 @@ class Cycling extends Workout {
     }
 }
 
-const run1 = new Running([39, -12], 5.2, 24, 178);
-const cycle1 = new Cycling([39, -12], 27, 95, 523);
+// const run1 = new Running([39, -12], 5.2, 24, 178);
+// const cycle1 = new Cycling([39, -12], 27, 95, 523);
 
-console.log(run1, cycle1);
+// console.log(run1, cycle1);
 
 const form = document.querySelector('.form');
 const containerWorkouts = document.querySelector('.workouts');
@@ -73,7 +76,7 @@ class App {
     #workouts = [];
     constructor() {
         this._getPosition();
-
+        this._getLocalStorage();
         form.addEventListener('submit', this._newWorkout.bind(this));
         inputType.addEventListener('change', this._toggleElevationField)
         containerWorkouts.addEventListener('click', this._moveToPopup.bind(this));
@@ -99,6 +102,10 @@ class App {
         }).addTo(this.#map);
 
         this.#map.on('click', this._showForm.bind(this));
+
+        this.#workouts.forEach(work => {
+            this._renderWorkoutMarker(work);
+        });
     }
 
     _showForm(mapE) {
@@ -155,7 +162,6 @@ class App {
             workout = new Cycling([lat, lng], distance, duration, elevation);
         }
         this.#workouts.push(workout);
-        console.log(workout)
 
         this._renderWorkoutMarker(workout);
 
@@ -191,7 +197,7 @@ class App {
           <h2 class="workout__title">${workout.description}</h2>
           <div class="workout__details">
             <span class="workout__icon">${
-            workout.name === 'running' ? '🏃‍♂️' : '🚴‍♀️'}
+            workout.type === 'running' ? '🏃‍♂️' : '🚴‍♀️'}
             </span>
             <span class="workout__value">${workout.distance}</span>
             <span class="workout__unit">km</span>
@@ -235,10 +241,14 @@ class App {
     }
 
     _moveToPopup(e) {
+        if (!this.#map) return;
+
         const workoutEl = e.target.closest('.workout');
+
         if (!workoutEl) return;
 
         const workout = this.#workouts.find(work => work.id === workoutEl.dataset.id);
+
         this.#map.setView(workout.coords, this.#mapZoomLevel, {
             animate: true,
             pan: {
@@ -248,8 +258,20 @@ class App {
         workout.click();
     }
     _setLocalStorage() {
-        localStorage.setItem('workouts', JSON.stringify(this.#workouts))
-    };
+        localStorage.setItem('workouts', JSON.stringify(this.#workouts));
+    }
+
+    _getLocalStorage() {
+        const data = JSON.parse(localStorage.getItem('workouts'));
+
+        if (!data) return;
+
+        this.#workouts = data;
+
+        this.#workouts.forEach(work => {
+            this._renderWorkout(work);
+        })
+    }
  }
         
 
