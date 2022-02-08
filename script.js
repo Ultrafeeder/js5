@@ -10,12 +10,17 @@ class Workout {
         this.coords = coords;
         this.distance = distance;
         this.duration = duration;
+        
     }
     _setDescription() {
         // prettier-ignore
         const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-        this.description
+        this.description = `${this.type[0].toUpperCase()}${this.type.slice(1)} on ${months[this.date.getMonth()]} ${this.date.getDate()}`
+    }
+
+    click() {
+        this.click++;
     }
 }
 
@@ -25,6 +30,7 @@ class Running extends Workout {
     super(coords, distance, duration);
         this.cadence = cadence;
         this.calcPace()
+        this._setDescription()
     }
     
     calcPace() {
@@ -39,6 +45,7 @@ class Cycling extends Workout {
         super(coords, distance, duration);
         this.elevationGain = elevationGain
         this.calcSpeed();
+        this._setDescription()
     }
     calcSpeed() {
     this.speed = this.distance / (this.duration / 60);
@@ -61,6 +68,7 @@ const inputElevation = document.querySelector('.form__input--elevation');
 
 class App {
     #map;
+    #mapZoomLevel = 13;
     #mapEvent;
     #workouts = [];
     constructor() {
@@ -68,7 +76,7 @@ class App {
 
         form.addEventListener('submit', this._newWorkout.bind(this));
         inputType.addEventListener('change', this._toggleElevationField)
-        
+        containerWorkouts.addEventListener('click', this._moveToPopup.bind(this));
     }
 
     _getPosition() {
@@ -84,7 +92,7 @@ class App {
             
         const coords = [latitude, longitude]
 
-        this.#map = L.map('map').setView(coords, 13);
+        this.#map = L.map('map').setView(coords, this.#mapZoomLevel);
         // console.log(map)
         L.tileLayer('https://{s}.tile.openstreetmap.fr/hot//{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -97,6 +105,13 @@ class App {
         this.#mapEvent = mapE;
         form.classList.remove('hidden');
         inputDistance.focus();
+    }
+
+    _hideForm() {
+        inputDistance.value = inputDuration.value = inputCadence.value = inputElevation.value = '';
+        form.style.display = 'none';
+        form.classList.add('hidden');
+        setTimeout(() => (form.style.display = 'grid'), 1000);
     }
 
     _toggleElevationField() {
@@ -146,7 +161,9 @@ class App {
 
         this._renderWorkout(workout)
         // clear input fields
-        inputDistance.value = inputDuration.value = inputCadence.value = inputElevation.value = '';
+        this._hideForm();
+
+        this._setLocalStorage();
     }
         
         
@@ -163,14 +180,15 @@ class App {
         
                     })
                 )
-                .setPopupContent('workout')
+                .setPopupContent(`
+                ${workout.name === 'running' ? '🏃‍♂️' : '🚴‍♀️'} ${workout.description}`)
                 .openPopup();
         }
     
     _renderWorkout(workout) {
         let html = `
         <li class="workout workout--${workout.name}" data-id="${workout.id}">
-          <h2 class="workout__title">Running on April 14</h2>
+          <h2 class="workout__title">${workout.description}</h2>
           <div class="workout__details">
             <span class="workout__icon">${
             workout.name === 'running' ? '🏃‍♂️' : '🚴‍♀️'}
@@ -215,6 +233,23 @@ class App {
                 ;
         form.insertAdjacentHTML('afterend', html);
     }
+
+    _moveToPopup(e) {
+        const workoutEl = e.target.closest('.workout');
+        if (!workoutEl) return;
+
+        const workout = this.#workouts.find(work => work.id === workoutEl.dataset.id);
+        this.#map.setView(workout.coords, this.#mapZoomLevel, {
+            animate: true,
+            pan: {
+                duration: 1
+            }
+        });
+        workout.click();
+    }
+    _setLocalStorage() {
+        localStorage.setItem('workouts', JSON.stringify(this.#workouts))
+    };
  }
         
 
